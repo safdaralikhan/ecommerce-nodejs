@@ -1,6 +1,7 @@
 import Order from "../models/Order.js";
 import Stripe from "stripe";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY);
 
 // -------------------- PLACE ORDER (COD) --------------------
 export const placeOrder = async (req, res) => {
