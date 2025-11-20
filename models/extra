@@ -1,0 +1,148 @@
+import Stripe from "stripe";
+import Order from "../models/Order.js";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+export const placeOrder = async (req, res) => {
+  try {
+    const { userId, orderItems, shippingAddress, paymentMethod } = req.body;
+
+    if (!orderItems || orderItems.length === 0) {
+      return res.status(400).json({ status: false, message: "Order items required" });
+    }
+
+    const totalAmount = orderItems.reduce(
+      (sum, item) => sum + item.price * item.qty,
+      0
+    );
+
+    // -------------------- 1️⃣ CASH ON DELIVERY --------------------
+    if (paymentMethod === "COD") {
+      const order = await Order.create({
+        userId,
+        orderItems,
+        shippingAddress,
+        paymentMethod: "COD",
+        paymentStatus: "pending",
+        orderStatus: "processing",
+        totalAmount,
+      });
+
+      return res.status(201).json({
+        status: true,
+        type: "COD",
+        message: "Order placed successfully (Cash on Delivery)",
+        data: order,
+      });
+    }
+
+    // -------------------- 2️⃣ CARD (STRIPE CHECKOUT) --------------------
+    if (paymentMethod === "CARD") {
+      // Create pending order first
+      const order = await Order.create({
+        userId,
+        orderItems,
+        shippingAddress,
+        paymentMethod: "CARD",
+        paymentStatus: "pending",
+        orderStatus: "processing",
+        totalAmount,
+      });
+
+      // Create Stripe Checkout Session
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        mode: "payment",
+        success_url: `${process.env.CLIENT_URL}/payment-success?orderId=${order._id}`,
+        cancel_url: `${process.env.CLIENT_URL}/payment-cancel?orderId=${order._id}`,
+        metadata: { orderId: order._id.toString() },
+
+        line_items: orderItems.map((item) => ({
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: item.productId.toString(),
+            },
+            unit_amount: item.price * 100,
+          },
+          quantity: item.qty,
+        })),
+      });
+
+      return res.status(200).json({
+        status: true,
+        type: "CARD",
+        message: "Stripe checkout session created",
+        sessionUrl: session.url,
+        orderId: order._id,
+      });
+    }
+
+    return res.status(400).json({ status: false, message: "Invalid payment method" });
+
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "Order failed",
+      error: error.message,
+    });
+  }
+};
+
+
+
+
+
+
+import Stripe from "stripe";
+import Order from "../models/Order.js";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+export const stripeWebhook = async (req, res) => {
+  try {
+    const sig = req.headers["stripe-signature"];
+
+    const event = stripe.webhooks.constructEvent(
+      req.rawBody, 
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+
+    // ---- Payment Success ----
+    if (event.type === "checkout.session.completed") {
+      const data = event.data.object;
+      const orderId = data.metadata.orderId;
+
+      await Order.findByIdAndUpdate(orderId, {
+        paymentStatus: "paid",
+        orderStatus: "processing",
+      });
+
+      console.log("Order marked as PAID:", orderId);
+    }
+
+    res.status(200).json({ received: true });
+
+  } catch (err) {
+    console.log("Webhook Error:", err.message);
+    res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+};
+
+
+
+
+import express from "express";
+import { stripeWebhook } from "../controllers/stripeWebhook.js";
+
+const router = express.Router();
+
+// IMPORTANT → express.json nahi chalega yahan
+router.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  stripeWebhook
+);
+
+export default router;
