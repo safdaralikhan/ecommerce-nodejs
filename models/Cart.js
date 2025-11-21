@@ -1,26 +1,20 @@
 import mongoose from "mongoose";
 
-const categorySchema = new mongoose.Schema(
+const cartSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-    },
-    slug: {
-      type: String,
-      unique: true,
-      lowercase: true,
-    },
-    image: {
-      type: String,
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
     },
+    products: [
+      {
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+        qty: { type: Number, default: 1 },
+      }
+    ]
   },
   { timestamps: true }
 );
 
-// FIX: Prevent OverwriteModelError
-export default mongoose.models.Category ||
-  mongoose.model("Category", categorySchema);
+export default mongoose.model("Cart", cartSchema);
