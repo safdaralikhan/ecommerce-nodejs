@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const categorySchema = new mongoose.Schema(
-  { 
+  {
     name: {
       type: String,
       required: true,
@@ -21,4 +21,5 @@ const categorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("Category", categorySchema);
+// ⚡ Conditional export to prevent OverwriteModelError
+export default mongoose.models.Category || mongoose.model("Category", categorySchema);
