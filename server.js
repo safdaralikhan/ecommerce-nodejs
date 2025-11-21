@@ -13,6 +13,8 @@ import homeRoutes from "./routes/homeRoutes.js"
 import stripeWebhookRoutes from "./routes/stripeWebhook.js";
 connectDB();
 const app = express();
+app.use(express.json()); // <--- Yeh zaroori hai
+app.use(express.urlencoded({ extended: true })); // optional, form data ke liye
 app.use(cors());
 app.use(express.json());
 app.use("/api/users", userRoutes);
