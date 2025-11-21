@@ -1,15 +1,14 @@
 import Category from "../models/Category.js";
 import slugify from "slugify";
 
-// Create Category
 export const createCategory = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, image } = req.body;
 
-    if (!name) {
+    if (!name || !image) {
       return res.status(400).json({
         status: false,
-        message: "Category name is required",
+        message: "Category name and image are required",
       });
     }
 
@@ -24,6 +23,7 @@ export const createCategory = async (req, res) => {
     const category = await Category.create({
       name,
       slug: slugify(name),
+      image,
     });
 
     res.status(201).json({
@@ -35,6 +35,7 @@ export const createCategory = async (req, res) => {
     res.status(500).json({
       status: false,
       message: "Server error",
+      error: error.message,
     });
   }
 };
