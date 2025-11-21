@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const categorySchema = new mongoose.Schema(
-  { 
+  {
     name: {
       type: String,
       required: true,
@@ -14,12 +14,13 @@ const categorySchema = new mongoose.Schema(
       lowercase: true,
     },
     image: {
-      type: String,  // image ka URL ya path
+      type: String,
       required: true,
     },
   },
   { timestamps: true }
 );
 
-// ⚡ Conditional export to prevent OverwriteModelError
-export default mongoose.models.Category || mongoose.model("Category", categorySchema);
+// FIX: Prevent OverwriteModelError
+export default mongoose.models.Category ||
+  mongoose.model("Category", categorySchema);
