@@ -13,8 +13,14 @@ const categorySchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
     },
+    image: {
+      type: String,
+      required: true,
+    },
   },
-//   { timestamps: true }
+  { timestamps: true }
 );
 
-export default mongoose.model("Category", categorySchema);
+// FIX: Prevent OverwriteModelError
+export default mongoose.models.Category ||
+  mongoose.model("Category", categorySchema);
