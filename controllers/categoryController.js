@@ -121,3 +121,27 @@ export const deleteCategory = async (req, res) => {
     });
   }
 };
+
+
+
+export const getProductsByCategory = async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+
+    const products = await Product.find({ category: categoryId })
+      .populate("category", "name slug image");
+
+    res.status(200).json({
+      status: true,
+      count: products.length,
+      data: products,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
