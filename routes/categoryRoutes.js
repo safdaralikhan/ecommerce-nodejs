@@ -4,6 +4,7 @@ import {
   getCategories,
    updateCategory,
   deleteCategory,
+  getProductsByCategory
 } from "../controllers/categoryController.js";
 import { protect } from "../middleware/authMiddleware.js";
 const router = express.Router();
