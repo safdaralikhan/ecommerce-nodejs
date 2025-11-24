@@ -17,10 +17,10 @@ const productSchema = new mongoose.Schema(
     images: [String],
 
     category: {
-      type: String,
-      required: true,
-    },
-
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Category",
+  required: true,
+},
     brand: String,
 
     stock: {
