@@ -130,13 +130,29 @@ export const getProductsByCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
 
-    const products = await Product.find({ category: categoryId })
-      .populate("category", "name slug image");
+    // category details lao
+    const category = await Category.findById(categoryId).select("name");
+
+    if (!category) {
+      return res.status(404).json({
+        status: false,
+        message: "Category not found",
+      });
+    }
+
+    // sirf products lao
+    const products = await Product.find({ category: categoryId });
+
+    // har product me category name add kar do
+    const updatedProducts = products.map((p) => ({
+      ...p._doc,
+      category: category.name,
+    }));
 
     res.status(200).json({
       status: true,
-      count: products.length,
-      data: products,
+      count: updatedProducts.length,
+      data: updatedProducts,
     });
 
   } catch (error) {
