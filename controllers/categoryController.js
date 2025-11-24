@@ -143,7 +143,7 @@ export const getProductsByCategory = async (req, res) => {
     // sirf products lao
     const products = await Product.find({ category: categoryId });
 
-    // har product me category name add kar do
+    // har product me sirf category ka name daal do
     const updatedProducts = products.map((p) => ({
       ...p._doc,
       category: category.name,
@@ -151,6 +151,7 @@ export const getProductsByCategory = async (req, res) => {
 
     res.status(200).json({
       status: true,
+      category: category.name,   // ⬅️ category ka title bahir add kar diya
       count: updatedProducts.length,
       data: updatedProducts,
     });
@@ -163,3 +164,4 @@ export const getProductsByCategory = async (req, res) => {
     });
   }
 };
+
