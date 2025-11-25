@@ -15,7 +15,10 @@ connectDB();
 const app = express();
 app.use(express.json()); // <--- Yeh zaroori hai
 app.use(express.urlencoded({ extended: true })); // optional, form data ke liye
-app.use(cors());
+app.use(cors({
+  origin: ["http://localhost:3000", "https://ecommerce-nodejs-production-4abd.up.railway.app"], 
+  credentials: true,
+}));
 app.use(express.json());
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
