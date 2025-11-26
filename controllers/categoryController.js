@@ -61,7 +61,7 @@ export const getCategories = async (req, res) => {
 export const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name } = req.body;
+    const { name, image } = req.body;  // <-- image bhi destructure karo
 
     if (!name) {
       return res.status(400).json({
@@ -78,8 +78,15 @@ export const updateCategory = async (req, res) => {
       });
     }
 
+    // Update fields
     category.name = name;
     category.slug = slugify(name);
+
+    // Agar image pass ki gayi ho to update karo
+    if (image) {
+      category.image = image;
+    }
+
     await category.save();
 
     res.status(200).json({
@@ -95,6 +102,7 @@ export const updateCategory = async (req, res) => {
     });
   }
 };
+
 
 // -------------------- DELETE CATEGORY --------------------
 export const deleteCategory = async (req, res) => {
