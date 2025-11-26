@@ -28,7 +28,6 @@ app.use("/api/category", categoryRoutes);
 app.use("/api/home", homeRoutes);
 app.use("/api/webhook", stripeWebhookRoutes);
 
-
 // Test route
 app.get("/", (req, res) => {
   res.send("Backend is running...");
