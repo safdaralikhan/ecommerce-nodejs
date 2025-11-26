@@ -76,15 +76,33 @@ export const addToCart = async (req, res) => {
   }
 };
 
-// -------------------- GET USER CART --------------------
+
+// -------------------- GET USER/GUEST CART --------------------
 export const getCart = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { userId, guestId } = req.params;
 
-    const cart = await Cart.findOne({ userId }).populate(
-      "products.productId",
-      "name price salePrice images category brand"
-    );
+    if (!userId && !guestId) {
+      return res.status(400).json({
+        status: false,
+        message: "userId or guestId required ",
+      });
+    }
+
+    let cart;
+    if (userId) {
+      cart = await Cart.findOne({ userId }).populate(
+        "products.productId",
+        "name price salePrice images category brand"
+      );
+    }
+
+    if (guestId) {
+      cart = await Cart.findOne({ guestId }).populate(
+        "products.productId",
+        "name price salePrice images category brand"
+      );
+    }
 
     return res.status(200).json({
       status: true,
