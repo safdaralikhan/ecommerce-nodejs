@@ -78,35 +78,43 @@ export const addToCart = async (req, res) => {
 
 
 // -------------------- GET USER/GUEST CART --------------------
+// -------------------- GET CART (user OR guest) --------------------
 export const getCart = async (req, res) => {
   try {
-    const { userId, guestId } = req.params;
+    const { id } = req.params; // front se sirf 'id' aayegi
 
-    if (!userId && !guestId) {
+    if (!id) {
       return res.status(400).json({
         status: false,
-        message: "userId or guestId required ",
+        message: "id is required",
       });
     }
 
-    let cart;
-    if (userId) {
-      cart = await Cart.findOne({ userId }).populate(
+    // 🔍 Try finding as user cart
+    let cart = await Cart.findOne({ userId: id }).populate(
+      "products.productId",
+      "name price salePrice images category brand"
+    );
+
+    // ❌ If not found, try guest cart
+    if (!cart) {
+      cart = await Cart.findOne({ guestId: id }).populate(
         "products.productId",
         "name price salePrice images category brand"
       );
     }
 
-    if (guestId) {
-      cart = await Cart.findOne({ guestId }).populate(
-        "products.productId",
-        "name price salePrice images category brand"
-      );
+    // ❌ Cart not found
+    if (!cart) {
+      return res.status(404).json({
+        status: false,
+        message: "Cart not found",
+      });
     }
 
     return res.status(200).json({
       status: true,
-      data: cart || { products: [] },
+      data: cart,
     });
 
   } catch (error) {
@@ -114,9 +122,11 @@ export const getCart = async (req, res) => {
     return res.status(500).json({
       status: false,
       message: "Server error while fetching cart",
+      error: error.message,
     });
   }
 };
+
 
 
 export const removeFromCart = async (req, res) => {
