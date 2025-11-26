@@ -1,47 +1,60 @@
 import Cart from "../models/Cart.js";
 
-// -------------------- ADD TO CART --------------------
 export const addToCart = async (req, res) => {
   try {
     const { userId, guestId, productId, qty } = req.body;
 
-    if ( !productId) {
+    if (!productId) {
       return res.status(400).json({
         status: false,
-        message: "userId and productId are required",
+        message: "productId is required",
+      });
+    }
+
+    // ❗ CHECK: Don’t allow both null
+    if (!userId && !guestId) {
+      return res.status(400).json({
+        status: false,
+        message: "userId or guestId is required",
       });
     }
 
     const quantity = qty || 1;
 
+    let cart;
+
+    // If user is logged in → use userId
     if (userId) {
-      var cart = await Cart.findOne({ userId });
+      cart = await Cart.findOne({ userId });
     }
-    if (guestId) {
-      var cart = await Cart.findOne({ guestId });
+
+    // If guest user → use guestId
+    if (guestId && !cart) {
+      cart = await Cart.findOne({ guestId });
     }
-    // -------- CREATE NEW CART --------
+
+    // ---- CREATE NEW CART ----
     if (!cart) {
       cart = await Cart.create({
-        userId,
-        guestId,
+        userId: userId || null,
+        guestId: guestId || null,
         products: [{ productId, qty: quantity }],
       });
 
       return res.status(201).json({
         status: true,
-        message: "Product added to cart",
+        message: "Product added to new cart",
         data: cart,
       });
     }
 
-    // -------- CHECK IF PRODUCT ALREADY EXISTS --------
-    const productIndex = cart.products.findIndex(
-      (item) => String(item.productId) === String(productId)
+    // ---- CHECK PRODUCT EXIST ----
+    const existing = cart.products.find(
+      (p) => String(p.productId) === String(productId)
     );
 
-    if (productIndex > -1) {
-      cart.products[productIndex].qty += quantity;
+    if (existing) {
+      existing.qty += quantity;
     } else {
       cart.products.push({ productId, qty: quantity });
     }
@@ -55,13 +68,14 @@ export const addToCart = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("ADD TO CART ERROR:", error);
+    console.log("ADD TO CART ERROR:", error);
     return res.status(500).json({
       status: false,
-      message: "Server error while adding to cart",
+      message: "Server error",
     });
   }
 };
+
 // -------------------- GET USER CART --------------------
 export const getCart = async (req, res) => {
   try {
