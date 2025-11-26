@@ -1,12 +1,11 @@
 import Cart from "../models/Cart.js";
 
-
 // -------------------- ADD TO CART --------------------
 export const addToCart = async (req, res) => {
   try {
-    const { userId, productId, qty } = req.body;
+    const { userId, guestId, productId, qty } = req.body;
 
-    if (!userId || !productId) {
+    if ( !productId) {
       return res.status(400).json({
         status: false,
         message: "userId and productId are required",
@@ -15,12 +14,17 @@ export const addToCart = async (req, res) => {
 
     const quantity = qty || 1;
 
-    let cart = await Cart.findOne({ userId });
-
+    if (userId) {
+      var cart = await Cart.findOne({ userId });
+    }
+    if (guestId) {
+      var cart = await Cart.findOne({ guestId });
+    }
     // -------- CREATE NEW CART --------
     if (!cart) {
       cart = await Cart.create({
         userId,
+        guestId,
         products: [{ productId, qty: quantity }],
       });
 
@@ -58,7 +62,6 @@ export const addToCart = async (req, res) => {
     });
   }
 };
-
 // -------------------- GET USER CART --------------------
 export const getCart = async (req, res) => {
   try {
