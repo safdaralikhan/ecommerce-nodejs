@@ -121,17 +121,24 @@ export const getCart = async (req, res) => {
 
 export const removeFromCart = async (req, res) => {
   try {
-    const { userId, productId } = req.body;
+    const { id, productId } = req.body;
 
-    if (!userId || !productId) {
+    if (!id || !productId) {
       return res.status(400).json({
         status: false,
-        message: "userId and productId are required",
+        message: "id and productId are required",
       });
     }
 
-    const cart = await Cart.findOne({ userId });
+    // 🔍 Step 1: Try userId cart
+    let cart = await Cart.findOne({ userId: id });
 
+    // 🔍 Step 2: If not found → try guestId cart
+    if (!cart) {
+      cart = await Cart.findOne({ guestId: id });
+    }
+
+    // ❌ If still not found
     if (!cart) {
       return res.status(404).json({
         status: false,
@@ -139,20 +146,22 @@ export const removeFromCart = async (req, res) => {
       });
     }
 
-    const itemIndex = cart.products.findIndex(
-      (p) => p.productId.toString() === productId
+    // 🔍 Step 3: Find product
+    const index = cart.products.findIndex(
+      (item) => item.productId.toString() === productId
     );
 
-    if (itemIndex === -1) {
+    if (index === -1) {
       return res.status(404).json({
         status: false,
         message: "Product not found in cart",
       });
     }
 
-    // Remove the item
-    cart.products.splice(itemIndex, 1);
+    // 🗑️ Step 4: Remove product
+    cart.products.splice(index, 1);
 
+    // 🔄 Save
     await cart.save();
 
     return res.status(200).json({
@@ -169,6 +178,7 @@ export const removeFromCart = async (req, res) => {
     });
   }
 };
+
 
 // Update product quantity (+ / -)
 export const updateQty = async (req, res) => {
