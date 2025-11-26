@@ -56,16 +56,27 @@ export const createProduct = async (req, res) => {
 };
 
 
-// Get all products
 export const getProducts = async (req, res) => {
   try {
-    const products = await Product.find();
-     res.status(200).json({
+    // Populate category ka name field
+    const products = await Product.find().populate("category", "name");
+
+    // Har product me sirf name show karna
+    const updatedProducts = products.map(p => ({
+      ...p._doc,
+      category: p.category.name, // ObjectId ko replace kar diya name se
+    }));
+
+    res.status(200).json({
       status: true,
-      data: products,
+      data: updatedProducts,
     });
   } catch (error) {
-    res.status(500).json({ message: "Error fetching products", error });
+    res.status(500).json({ 
+      status: false,
+      message: "Error fetching products", 
+      error: error.message 
+    });
   }
 };
 
