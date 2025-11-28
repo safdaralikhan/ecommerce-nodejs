@@ -70,17 +70,19 @@ export const placeOrder = async (req, res) => {
         success_url: `${process.env.CLIENT_URL}/payment-success?orderId=${order._id}`,
         cancel_url: `${process.env.CLIENT_URL}/payment-cancel?orderId=${order._id}`,
         metadata: { orderId: order._id.toString() },
-        line_items: orderItems.map((item) => ({
-          price_data: {
-            currency: "usd",
-            product_data: {
-                name: item.name,         
-          images: [item.images[0]], 
-            },
-            unit_amount: item.price * 100,
-          },
-          quantity: item.qty,
-        })),
+     line_items: orderItems.map((item) => ({
+  price_data: {
+    currency: "usd",
+    product_data: {
+      name: item.name || "Product",
+      ...(item.images && item.images.length > 0 && {
+        images: [item.images[0]],
+      }),
+    },
+    unit_amount: (item.price || 0) * 100,
+  },
+  quantity: item.qty || 1,
+})),
       });
 
       return res.status(200).json({
