@@ -1,5 +1,6 @@
 import Order from "../models/Order.js";
 import mongoose from "mongoose";
+import Product from "../models/Product.js";
 import Stripe from "stripe";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY);
@@ -15,17 +16,24 @@ export const placeOrder = async (req, res) => {
       return res.status(400).json({ status: false, message: "id and order items required" });
     }
 
-    let userId = null;
-    let guestId = null;
+    // Detect userId or guestId
+    let userId = mongoose.Types.ObjectId.isValid(id) ? id : null;
+    let guestId = !mongoose.Types.ObjectId.isValid(id) ? id : null;
 
-    // 🔍 Check if id is ObjectId → user
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      userId = id;
-    } else {
-      guestId = id;
-    }
+    // Fetch product details from DB
+    const populatedItems = await Promise.all(
+      orderItems.map(async (item) => {
+        const product = await Product.findById(item.productId).select("name images");
 
-    const totalAmount = orderItems.reduce(
+        return {
+          ...item,
+          name: product?.name || "Product",
+          image: product?.images?.[0] || null,
+        };
+      })
+    );
+
+    const totalAmount = populatedItems.reduce(
       (sum, item) => sum + item.price * item.qty,
       0
     );
@@ -35,7 +43,7 @@ export const placeOrder = async (req, res) => {
       const order = await Order.create({
         userId,
         guestId,
-        orderItems,
+        orderItems: populatedItems,
         shippingAddress,
         paymentMethod: "COD",
         paymentStatus: "pending",
@@ -56,7 +64,7 @@ export const placeOrder = async (req, res) => {
       const order = await Order.create({
         userId,
         guestId,
-        orderItems,
+        orderItems: populatedItems,
         shippingAddress,
         paymentMethod: "CARD",
         paymentStatus: "pending",
@@ -67,22 +75,25 @@ export const placeOrder = async (req, res) => {
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
         mode: "payment",
+
         success_url: `${process.env.CLIENT_URL}/payment-success?orderId=${order._id}`,
         cancel_url: `${process.env.CLIENT_URL}/payment-cancel?orderId=${order._id}`,
+
         metadata: { orderId: order._id.toString() },
-     line_items: orderItems.map((item) => ({
-  price_data: {
-    currency: "usd",
-    product_data: {
-      name: item.name || "Product",
-      ...(item.images && item.images.length > 0 && {
-        images: [item.images[0]],
-      }),
-    },
-    unit_amount: (item.price || 0) * 100,
-  },
-  quantity: item.qty || 1,
-})),
+
+        line_items: populatedItems.map((item) => ({
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: item.name,
+              ...(item.image && {
+                images: [item.image],
+              }),
+            },
+            unit_amount: item.price * 100,
+          },
+          quantity: item.qty,
+        })),
       });
 
       return res.status(200).json({
