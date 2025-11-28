@@ -77,11 +77,10 @@ export const addToCart = async (req, res) => {
 };
 
 
-// -------------------- GET USER/GUEST CART --------------------
-// -------------------- GET CART (user OR guest) --------------------
+
 export const getCart = async (req, res) => {
   try {
-    const { id } = req.params; // front se sirf 'id' aayegi
+    const { id } = req.params;
 
     if (!id) {
       return res.status(400).json({
@@ -90,13 +89,18 @@ export const getCart = async (req, res) => {
       });
     }
 
-    // 🔍 Try finding as user cart
-    let cart = await Cart.findOne({ userId: id }).populate(
-      "products.productId",
-      "name price salePrice images category brand"
-    );
+    let cart = null;
 
-    // ❌ If not found, try guest cart
+    // 🟢 1) Check if ID is a valid ObjectId → User Cart
+    if (mongoose.Types.ObjectId.isValid(id)) {
+
+      cart = await Cart.findOne({ userId: id }).populate(
+        "products.productId",
+        "name price salePrice images category brand"
+      );
+    }
+
+    // 🔵 2) If cart not found OR id is NOT ObjectId → Guest Cart
     if (!cart) {
       cart = await Cart.findOne({ guestId: id }).populate(
         "products.productId",
@@ -104,17 +108,10 @@ export const getCart = async (req, res) => {
       );
     }
 
-    // ❌ Cart not found
-    if (!cart) {
-      return res.status(404).json({
-        status: false,
-        message: "Cart not found",
-      });
-    }
-
+    // 🟠 3) No cart found → return empty cart
     return res.status(200).json({
       status: true,
-      data: cart,
+      data: cart || { products: [] },
     });
 
   } catch (error) {
