@@ -74,7 +74,8 @@ export const placeOrder = async (req, res) => {
           price_data: {
             currency: "usd",
             product_data: {
-              name: item.productId.toString(),
+                name: item.name,         
+          images: [item.images[0]], 
             },
             unit_amount: item.price * 100,
           },
