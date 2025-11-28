@@ -193,22 +193,47 @@ export const removeFromCart = async (req, res) => {
 
 
 // Update product quantity (+ / -)
+// Update product quantity (+ / -)
 export const updateQty = async (req, res) => {
   try {
-    const { userId, productId, qty } = req.body; // qty can be +1 or -1
+    const { id, productId, qty } = req.body; // qty can be +1 or -1
 
-    let cart = await Cart.findOne({ userId });
-    if (!cart) return res.status(404).json({ status: false, message: "Cart not found" });
+    if (!id || !productId || !qty) {
+      return res.status(400).json({
+        status: false,
+        message: "id, productId and qty are required",
+      });
+    }
 
-    const itemIndex = cart.products.findIndex(p => p.productId == productId);
+    let cart = null;
+
+    // 🟢 Check if id is a valid ObjectId → user cart
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      cart = await Cart.findOne({ userId: id });
+    }
+
+    // 🔵 If not found → try guest cart
+    if (!cart) {
+      cart = await Cart.findOne({ guestId: id });
+    }
+
+    if (!cart) {
+      return res.status(404).json({ status: false, message: "Cart not found" });
+    }
+
+    // 🔍 Find product in cart
+    const itemIndex = cart.products.findIndex(
+      (p) => p.productId.toString() === productId
+    );
+
     if (itemIndex === -1) {
       return res.status(404).json({ status: false, message: "Product not in cart" });
     }
 
-    // update qty
+    // ➕ Update quantity
     cart.products[itemIndex].qty += qty;
 
-    // auto remove if qty becomes 0
+    // ❌ Auto remove if qty <= 0
     if (cart.products[itemIndex].qty <= 0) {
       cart.products.splice(itemIndex, 1);
     }
@@ -218,11 +243,12 @@ export const updateQty = async (req, res) => {
     return res.json({
       status: true,
       message: "Cart updated",
-      cart
+      cart,
     });
 
   } catch (error) {
-    res.status(500).json({ status: false, message: "Error updating quantity", error });
+    console.error("UPDATE QTY ERROR:", error);
+    res.status(500).json({ status: false, message: "Error updating quantity", error: error.message });
   }
 };
 
