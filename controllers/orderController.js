@@ -1,22 +1,40 @@
 import Order from "../models/Order.js";
+import mongoose from "mongoose";
 import Stripe from "stripe";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY);
 
 // -------------------- PLACE ORDER (COD) --------------------
+
+
 export const placeOrder = async (req, res) => {
   try {
-    const { userId, orderItems, shippingAddress, paymentMethod } = req.body;
+    const { id, orderItems, shippingAddress, paymentMethod } = req.body;
 
-    if (!orderItems || orderItems.length === 0) {
-      return res.status(400).json({ status: false, message: "Order items are required" });
+    if (!id || !orderItems || orderItems.length === 0) {
+      return res.status(400).json({ status: false, message: "id and order items required" });
     }
 
-    const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+    let userId = null;
+    let guestId = null;
 
+    // 🔍 Check if id is ObjectId → user
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      userId = id;
+    } else {
+      guestId = id;
+    }
+
+    const totalAmount = orderItems.reduce(
+      (sum, item) => sum + item.price * item.qty,
+      0
+    );
+
+    // -------------------- 1️⃣ CASH ON DELIVERY --------------------
     if (paymentMethod === "COD") {
       const order = await Order.create({
         userId,
+        guestId,
         orderItems,
         shippingAddress,
         paymentMethod: "COD",
@@ -27,15 +45,17 @@ export const placeOrder = async (req, res) => {
 
       return res.status(201).json({
         status: true,
-        message: "Order placed successfully (COD)",
+        type: "COD",
+        message: "Order placed successfully (Cash on Delivery)",
         data: order,
       });
     }
 
-    // Agar paymentMethod CARD hai → frontend PaymentIntent handle karega
+    // -------------------- 2️⃣ CARD (STRIPE CHECKOUT) --------------------
     if (paymentMethod === "CARD") {
       const order = await Order.create({
         userId,
+        guestId,
         orderItems,
         shippingAddress,
         paymentMethod: "CARD",
@@ -44,16 +64,29 @@ export const placeOrder = async (req, res) => {
         totalAmount,
       });
 
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: totalAmount * 100, // cents
-        currency: "usd",
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        mode: "payment",
+        success_url: `${process.env.CLIENT_URL}/payment-success?orderId=${order._id}`,
+        cancel_url: `${process.env.CLIENT_URL}/payment-cancel?orderId=${order._id}`,
         metadata: { orderId: order._id.toString() },
+        line_items: orderItems.map((item) => ({
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: item.productId.toString(),
+            },
+            unit_amount: item.price * 100,
+          },
+          quantity: item.qty,
+        })),
       });
 
       return res.status(200).json({
         status: true,
-        message: "Stripe payment initiated",
-        clientSecret: paymentIntent.client_secret,
+        type: "CARD",
+        message: "Stripe checkout session created",
+        sessionUrl: session.url,
         orderId: order._id,
       });
     }
@@ -61,7 +94,12 @@ export const placeOrder = async (req, res) => {
     return res.status(400).json({ status: false, message: "Invalid payment method" });
 
   } catch (error) {
-    return res.status(500).json({ status: false, message: "Order failed", error: error.message });
+    console.error("PLACE ORDER ERROR:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Order failed",
+      error: error.message,
+    });
   }
 };
 
