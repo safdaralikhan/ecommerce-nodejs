@@ -138,15 +138,19 @@ export const removeFromCart = async (req, res) => {
       });
     }
 
-    // 🔍 Step 1: Try userId cart
-    let cart = await Cart.findOne({ userId: id });
+    let cart = null;
 
-    // 🔍 Step 2: If not found → try guestId cart
+    // 🟢 Step 1: Check if id is ObjectId → User cart
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      cart = await Cart.findOne({ userId: id });
+    }
+
+    // 🔵 Step 2: If not found → guest cart
     if (!cart) {
       cart = await Cart.findOne({ guestId: id });
     }
 
-    // ❌ If still not found
+    // ❌ Step 3: If still not found
     if (!cart) {
       return res.status(404).json({
         status: false,
@@ -154,7 +158,7 @@ export const removeFromCart = async (req, res) => {
       });
     }
 
-    // 🔍 Step 3: Find product
+    // 🔍 Step 4: Find product inside cart
     const index = cart.products.findIndex(
       (item) => item.productId.toString() === productId
     );
@@ -166,10 +170,10 @@ export const removeFromCart = async (req, res) => {
       });
     }
 
-    // 🗑️ Step 4: Remove product
+    // 🗑️ Step 5: Remove product
     cart.products.splice(index, 1);
 
-    // 🔄 Save
+    // 💾 Save
     await cart.save();
 
     return res.status(200).json({
