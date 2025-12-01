@@ -47,7 +47,7 @@ export const placeOrder = async (req, res) => {
         shippingAddress,
         paymentMethod: "COD",
         paymentStatus: "pending",
-        orderStatus: "processing",
+        orderStatus: "order placed",
         totalAmount,
       });
 
@@ -68,7 +68,7 @@ export const placeOrder = async (req, res) => {
         shippingAddress,
         paymentMethod: "CARD",
         paymentStatus: "pending",
-        orderStatus: "processing",
+        orderStatus: "order placed",
         totalAmount,
       });
 
@@ -255,13 +255,8 @@ export const adminUpdateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
 
-    const validStatus = [
-      "processing",
-      "on-the-way",
-      "shipped",
-      "delivered",
-      "cancelled"
-    ];
+    // 🔹 Allowed status sequence
+    const validStatus = ["order placed", "processing", "ship", "delivered", "cancelled"];
 
     if (!validStatus.includes(status)) {
       return res.status(400).json({
@@ -271,7 +266,6 @@ export const adminUpdateOrderStatus = async (req, res) => {
     }
 
     const order = await Order.findById(req.params.id);
-
     if (!order) {
       return res.status(404).json({
         status: false,
