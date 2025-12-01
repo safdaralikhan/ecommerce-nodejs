@@ -8,11 +8,12 @@ export const globalSearch = async (req, res) => {
       return res.status(400).json({ status: false, message: "Search keyword required" });
     }
 
-    // Exact match (case-insensitive)
-    const regex = new RegExp(`^${keyword}$`, "i");
+    // Partial, case-insensitive match
+    const regex = new RegExp(keyword, "i");
 
-    // Search Products only
-    const products = await Product.find({ name: regex }).select("name images price");
+    const products = await Product.find({
+      name: regex
+    }).select("name images price");
 
     return res.status(200).json({
       status: true,
