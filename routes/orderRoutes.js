@@ -15,7 +15,7 @@ router.post("/create-payment-intent", createPaymentIntent);
 
 // Confirm payment after Stripe payment is successful
 router.post("/confirm-payment", confirmPayment);
-router.get("/:orderId", getOrderDetails);
+router.get("/details/:orderId", getOrderDetails);
 
 
 
