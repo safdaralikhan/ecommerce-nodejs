@@ -76,8 +76,8 @@ export const placeOrder = async (req, res) => {
         payment_method_types: ["card"],
         mode: "payment",
 
-        success_url: `${process.env.CLIENT_URL}/payment-success?orderId=${order._id}`,
-        cancel_url: `${process.env.CLIENT_URL}/payment-cancel?orderId=${order._id}`,
+         success_url: `${process.env.CLIENT_URL}/payment-success?orderId=${order._id}`,
+        cancel_url: `${process.env.CLIENT_URL}/payment-failed?orderId=${order._id}`,
 
         metadata: { orderId: order._id.toString() },
 
