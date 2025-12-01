@@ -42,10 +42,10 @@ const orderSchema = new mongoose.Schema(
   default: "pending",
 },
 
-  orderStatus: {
+orderStatus: {
   type: String,
-  enum: ["processing", "on-the-way", "shipped", "delivered", "cancelled"],
-  default: "processing",
+  enum: ["order placed", "processing", "shipped", "delivered", "cancelled"],
+  default: "order placed"
 },
 
     totalAmount: Number,
