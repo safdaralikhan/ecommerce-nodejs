@@ -1,6 +1,6 @@
 import express from "express";
 import { placeOrder, getOrders,adminGetAllOrders,adminGetOrder,adminUpdateOrderStatus,adminUpdatePaymentStatus, createPaymentIntent,
-  confirmPayment } from "../controllers/orderController.js";
+  confirmPayment,getOrderDetails } from "../controllers/orderController.js";
 
 const router = express.Router();
 
@@ -15,6 +15,7 @@ router.post("/create-payment-intent", createPaymentIntent);
 
 // Confirm payment after Stripe payment is successful
 router.post("/confirm-payment", confirmPayment);
+router.get("/:orderId", getOrderDetails);
 
 
 
