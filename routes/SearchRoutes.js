@@ -3,7 +3,7 @@ import { globalSearch} from "../controllers/globalSearchController.js"
 
 const router = express.Router();
 
-router.get("/search", globalSearch);
+router.get("/", globalSearch);
 
 
 
