@@ -1,7 +1,4 @@
 import Product from "../models/Product.js";
-import Category from "../models/Category.js";
-import Order from "../models/Order.js";
-import User from "../models/User.js";
 
 export const globalSearch = async (req, res) => {
   try {
@@ -11,39 +8,17 @@ export const globalSearch = async (req, res) => {
       return res.status(400).json({ status: false, message: "Search keyword required" });
     }
 
-    const regex = new RegExp(keyword, "i"); // case–insensitive search
+    // Exact match (case-insensitive)
+    const regex = new RegExp(`^${keyword}$`, "i");
 
-    // 🔍 Search Products
-    const products = await Product.find({
-      $or: [{ name: regex }, { description: regex }]
-    }).select("name images price");
-
-    // 🔍 Search Categories
-    const categories = await Category.find({
-      name: regex
-    }).select("name slug image");
-
-    // 🔍 Search Orders by user name or shipping address
-    const orders = await Order.find({
-      $or: [
-        { "shippingAddress.fullName": regex },
-        { "shippingAddress.city": regex },
-      ]
-    }).select("orderStatus paymentStatus totalAmount createdAt");
-
-    // 🔍 Search Users
-    const users = await User.find({
-      $or: [{ name: regex }, { email: regex }]
-    }).select("name email");
+    // Search Products only
+    const products = await Product.find({ name: regex }).select("name images price");
 
     return res.status(200).json({
       status: true,
       message: "Search results",
       results: {
-        products,
-        categories,
-        orders,
-        users
+        products
       }
     });
 
