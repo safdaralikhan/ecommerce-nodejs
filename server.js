@@ -9,6 +9,7 @@ import orderRoutes from "./routes/orderRoutes.js";
 import cartRoutes from "./routes/cartRoutes.js"
 import categoryRoutes from "./routes/categoryRoutes.js"
 import homeRoutes from "./routes/homeRoutes.js"
+import SearchRoutes from "./routes/SearchRoutes.js"
 // Routes
 import stripeWebhookRoutes from "./routes/stripeWebhook.js";
 connectDB();
@@ -26,6 +27,7 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/category", categoryRoutes);
 app.use("/api/home", homeRoutes);
+app.use("/api/search", SearchRoutes);
 app.use("/api/webhook", stripeWebhookRoutes);
 
 // Test route
