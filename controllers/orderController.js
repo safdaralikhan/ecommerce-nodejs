@@ -254,7 +254,7 @@ export const adminUpdateOrderStatus = async (req, res) => {
     const { status } = req.body;
 
     // 🔹 Allowed status sequence
-    const validStatus = ["order placed", "processing", "ship", "delivered", "cancelled"];
+    const validStatus = ["order placed", "processing", "shipped", "delivered", "cancelled"];
 
     if (!validStatus.includes(status)) {
       return res.status(400).json({
