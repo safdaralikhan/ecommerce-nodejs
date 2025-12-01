@@ -13,8 +13,12 @@ const categorySchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
     },
+    image: {
+      type: String,  // image ka URL ya path
+      required: true,
+    },
   },
-//   { timestamps: true }
+  { timestamps: true }
 );
 
 export default mongoose.model("Category", categorySchema);

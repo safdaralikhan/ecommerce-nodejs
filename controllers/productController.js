@@ -1,5 +1,5 @@
 import Product from "../models/Product.js";
-
+import Category from "../models/Category.js";
 // -------------------- CREATE PRODUCT --------------------
 export const createProduct = async (req, res) => {
   try {
@@ -55,14 +55,27 @@ export const createProduct = async (req, res) => {
   }
 };
 
-
-// Get all products
 export const getProducts = async (req, res) => {
   try {
-    const products = await Product.find();
-    res.json(products);
+    // Populate category ka name field
+    const products = await Product.find().populate("category", "name");
+
+    // Har product me sirf name show karna
+    const updatedProducts = products.map(p => ({
+      ...p._doc,
+      category: p.category.name, // ObjectId ko replace kar diya name se
+    }));
+
+    res.status(200).json({
+      status: true,
+      data: updatedProducts,
+    });
   } catch (error) {
-    res.status(500).json({ message: "Error fetching products", error });
+    res.status(500).json({ 
+      status: false,
+      message: "Error fetching products", 
+      error: error.message 
+    });
   }
 };
 
@@ -70,29 +83,35 @@ export const getProducts = async (req, res) => {
 export const getProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    res.json(product);
+         res.status(200).json({
+      status: true,
+      data: product,
+    });
   } catch (error) {
     res.status(404).json({ message: "Product not found" });
   }
 };
 
-
-
-// -------------------- UPDATE PRODUCT --------------------
 export const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, salePrice, images, category, brand, stock, ratings } = req.body;
+    let { name, description, price, salePrice, images, category, brand, stock, ratings, newArrival, bestSeller } = req.body;
 
     const product = await Product.findById(id);
     if (!product) {
-      return res.status(404).json({
-        status: false,
-        message: "Product not found",
-      });
+      return res.status(404).json({ status: false, message: "Product not found" });
     }
 
-    // Update fields if provided
+    // Agar category name diya hai → uska ObjectId find karo
+    if (category) {
+      const categoryDoc = await Category.findOne({ name: category });
+      if (!categoryDoc) {
+        return res.status(400).json({ status: false, message: "Category not found" });
+      }
+      category = categoryDoc._id; // replace name with ObjectId
+    }
+
+    // Update fields
     product.name = name || product.name;
     product.description = description || product.description;
     product.price = price || product.price;
@@ -102,6 +121,8 @@ export const updateProduct = async (req, res) => {
     product.brand = brand || product.brand;
     product.stock = stock || product.stock;
     product.ratings = ratings || product.ratings;
+    product.newArrival = newArrival !== undefined ? newArrival : product.newArrival;
+    product.bestSeller = bestSeller !== undefined ? bestSeller : product.bestSeller;
 
     await product.save();
 
@@ -115,6 +136,7 @@ export const updateProduct = async (req, res) => {
     res.status(500).json({
       status: false,
       message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -146,5 +168,6 @@ export const deleteProduct = async (req, res) => {
     });
   }
 };
+
 
 

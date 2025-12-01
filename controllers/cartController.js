@@ -1,43 +1,62 @@
 import Cart from "../models/Cart.js";
-
+import mongoose from "mongoose";
 
 // -------------------- ADD TO CART --------------------
 export const addToCart = async (req, res) => {
   try {
-    const { userId, productId, qty } = req.body;
+    const { userId, guestId, productId, qty } = req.body;
 
-    if (!userId || !productId) {
+    if (!productId) {
       return res.status(400).json({
         status: false,
-        message: "userId and productId are required",
+        message: "productId is required",
+      });
+    }
+
+    // ❗ CHECK: Don’t allow both null
+    if (!userId && !guestId) {
+      return res.status(400).json({
+        status: false,
+        message: "userId or guestId is required",
       });
     }
 
     const quantity = qty || 1;
 
-    let cart = await Cart.findOne({ userId });
+    let cart;
 
-    // -------- CREATE NEW CART --------
+    // If user is logged in → use userId
+    if (userId) {
+      cart = await Cart.findOne({ userId });
+    }
+
+    // If guest user → use guestId
+    if (guestId && !cart) {
+      cart = await Cart.findOne({ guestId });
+    }
+
+    // ---- CREATE NEW CART ----
     if (!cart) {
       cart = await Cart.create({
-        userId,
+        userId: userId || null,
+        guestId: guestId || null,
         products: [{ productId, qty: quantity }],
       });
 
       return res.status(201).json({
         status: true,
-        message: "Product added to cart",
+        message: "Product added to new cart",
         data: cart,
       });
     }
 
-    // -------- CHECK IF PRODUCT ALREADY EXISTS --------
-    const productIndex = cart.products.findIndex(
-      (item) => String(item.productId) === String(productId)
+    // ---- CHECK PRODUCT EXIST ----
+    const existing = cart.products.find(
+      (p) => String(p.productId) === String(productId)
     );
 
-    if (productIndex > -1) {
-      cart.products[productIndex].qty += quantity;
+    if (existing) {
+      existing.qty += quantity;
     } else {
       cart.products.push({ productId, qty: quantity });
     }
@@ -51,24 +70,47 @@ export const addToCart = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("ADD TO CART ERROR:", error);
+    console.log("ADD TO CART ERROR:", error);
     return res.status(500).json({
       status: false,
-      message: "Server error while adding to cart",
+      message: "Server error",
     });
   }
 };
 
-// -------------------- GET USER CART --------------------
+
+// -------------------- GET CART (user OR guest) --------------------
 export const getCart = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { id } = req.params;
 
-    const cart = await Cart.findOne({ userId }).populate(
-      "products.productId",
-      "name price salePrice images category brand"
-    );
+    if (!id) {
+      return res.status(400).json({
+        status: false,
+        message: "id is required",
+      });
+    }
 
+    let cart = null;
+
+    // 🟢 1) Check if ID is a valid ObjectId → User Cart
+    if (mongoose.Types.ObjectId.isValid(id)) {
+
+      cart = await Cart.findOne({ userId: id }).populate(
+        "products.productId",
+        "name price salePrice images category brand"
+      );
+    }
+
+    // 🔵 2) If cart not found OR id is NOT ObjectId → Guest Cart
+    if (!cart) {
+      cart = await Cart.findOne({ guestId: id }).populate(
+        "products.productId",
+        "name price salePrice images category brand"
+      );
+    }
+
+    // 🟠 3) No cart found → return empty cart
     return res.status(200).json({
       status: true,
       data: cart || { products: [] },
@@ -79,24 +121,38 @@ export const getCart = async (req, res) => {
     return res.status(500).json({
       status: false,
       message: "Server error while fetching cart",
+      error: error.message,
     });
   }
 };
 
 
+
+
 export const removeFromCart = async (req, res) => {
   try {
-    const { userId, productId } = req.body;
+    const { id, productId } = req.body;
 
-    if (!userId || !productId) {
+    if (!id || !productId) {
       return res.status(400).json({
         status: false,
-        message: "userId and productId are required",
+        message: "id and productId are required",
       });
     }
 
-    const cart = await Cart.findOne({ userId });
+    let cart = null;
 
+    // 🟢 Step 1: Check if id is ObjectId → User cart
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      cart = await Cart.findOne({ userId: id });
+    }
+
+    // 🔵 Step 2: If not found → guest cart
+    if (!cart) {
+      cart = await Cart.findOne({ guestId: id });
+    }
+
+    // ❌ Step 3: If still not found
     if (!cart) {
       return res.status(404).json({
         status: false,
@@ -104,20 +160,22 @@ export const removeFromCart = async (req, res) => {
       });
     }
 
-    const itemIndex = cart.products.findIndex(
-      (p) => p.productId.toString() === productId
+    // 🔍 Step 4: Find product inside cart
+    const index = cart.products.findIndex(
+      (item) => item.productId.toString() === productId
     );
 
-    if (itemIndex === -1) {
+    if (index === -1) {
       return res.status(404).json({
         status: false,
         message: "Product not found in cart",
       });
     }
 
-    // Remove the item
-    cart.products.splice(itemIndex, 1);
+    // 🗑️ Step 5: Remove product
+    cart.products.splice(index, 1);
 
+    // 💾 Save
     await cart.save();
 
     return res.status(200).json({
@@ -135,23 +193,49 @@ export const removeFromCart = async (req, res) => {
   }
 };
 
+
+// Update product quantity (+ / -)
 // Update product quantity (+ / -)
 export const updateQty = async (req, res) => {
   try {
-    const { userId, productId, qty } = req.body; // qty can be +1 or -1
+    const { id, productId, qty } = req.body; // qty can be +1 or -1
 
-    let cart = await Cart.findOne({ userId });
-    if (!cart) return res.status(404).json({ status: false, message: "Cart not found" });
+    if (!id || !productId || !qty) {
+      return res.status(400).json({
+        status: false,
+        message: "id, productId and qty are required",
+      });
+    }
 
-    const itemIndex = cart.products.findIndex(p => p.productId == productId);
+    let cart = null;
+
+    // 🟢 Check if id is a valid ObjectId → user cart
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      cart = await Cart.findOne({ userId: id });
+    }
+
+    // 🔵 If not found → try guest cart
+    if (!cart) {
+      cart = await Cart.findOne({ guestId: id });
+    }
+
+    if (!cart) {
+      return res.status(404).json({ status: false, message: "Cart not found" });
+    }
+
+    // 🔍 Find product in cart
+    const itemIndex = cart.products.findIndex(
+      (p) => p.productId.toString() === productId
+    );
+
     if (itemIndex === -1) {
       return res.status(404).json({ status: false, message: "Product not in cart" });
     }
 
-    // update qty
+    // ➕ Update quantity
     cart.products[itemIndex].qty += qty;
 
-    // auto remove if qty becomes 0
+    // ❌ Auto remove if qty <= 0
     if (cart.products[itemIndex].qty <= 0) {
       cart.products.splice(itemIndex, 1);
     }
@@ -161,12 +245,14 @@ export const updateQty = async (req, res) => {
     return res.json({
       status: true,
       message: "Cart updated",
-      cart
+      cart,
     });
 
   } catch (error) {
-    res.status(500).json({ status: false, message: "Error updating quantity", error });
+    console.error("UPDATE QTY ERROR:", error);
+    res.status(500).json({ status: false, message: "Error updating quantity", error: error.message });
   }
 };
+
 
 

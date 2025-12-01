@@ -1,15 +1,14 @@
 import Category from "../models/Category.js";
 import slugify from "slugify";
-
-// Create Category
+import Product from "../models/Product.js";
 export const createCategory = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, image } = req.body;
 
-    if (!name) {
+    if (!name || !image) {
       return res.status(400).json({
         status: false,
-        message: "Category name is required",
+        message: "Category name and image are required",
       });
     }
 
@@ -24,6 +23,7 @@ export const createCategory = async (req, res) => {
     const category = await Category.create({
       name,
       slug: slugify(name),
+      image,
     });
 
     res.status(201).json({
@@ -35,9 +35,11 @@ export const createCategory = async (req, res) => {
     res.status(500).json({
       status: false,
       message: "Server error",
+      error: error.message,
     });
   }
 };
+
 
 // Get all categories
 export const getCategories = async (req, res) => {
@@ -58,7 +60,7 @@ export const getCategories = async (req, res) => {
 export const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name } = req.body;
+    const { name, image } = req.body;  // <-- image bhi destructure karo
 
     if (!name) {
       return res.status(400).json({
@@ -75,8 +77,15 @@ export const updateCategory = async (req, res) => {
       });
     }
 
+    // Update fields
     category.name = name;
     category.slug = slugify(name);
+
+    // Agar image pass ki gayi ho to update karo
+    if (image) {
+      category.image = image;
+    }
+
     await category.save();
 
     res.status(200).json({
@@ -92,6 +101,7 @@ export const updateCategory = async (req, res) => {
     });
   }
 };
+
 
 // -------------------- DELETE CATEGORY --------------------
 export const deleteCategory = async (req, res) => {
@@ -117,6 +127,47 @@ export const deleteCategory = async (req, res) => {
     res.status(500).json({
       status: false,
       message: "Server error",
+    });
+  }
+};
+
+
+
+export const getProductsByCategory = async (req, res) => {
+  try {
+    const { categoryId } = req.params;
+
+    // category details lao
+    const category = await Category.findById(categoryId).select("name");
+
+    if (!category) {
+      return res.status(404).json({
+        status: false,
+        message: "Category not found",
+      });
+    }
+
+    // sirf products lao
+    const products = await Product.find({ category: categoryId });
+
+    // har product me sirf category ka name daal do
+    const updatedProducts = products.map((p) => ({
+      ...p._doc,
+      category: category.name,
+    }));
+
+    res.status(200).json({
+      status: true,
+      category: category.name,   // ⬅️ category ka title bahir add kar diya
+      count: updatedProducts.length,
+      data: updatedProducts,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: "Server error",
+      error: error.message,
     });
   }
 };

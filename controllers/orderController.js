@@ -1,59 +1,103 @@
+import mongoose from "mongoose";
 import Order from "../models/Order.js";
 import Stripe from "stripe";
+import Product from "../models/Product.js";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY);
 
-// -------------------- PLACE ORDER (COD) --------------------
-export const placeOrder = async (req, res) => {
-  try {
-    const { userId, orderItems, shippingAddress, paymentMethod } = req.body;
 
-    if (!orderItems || orderItems.length === 0) {
-      return res.status(400).json({ status: false, message: "Order items are required" });
+  export const placeOrder = async (req, res) => {
+  try {
+    const { id, orderItems, shippingAddress, paymentMethod } = req.body;
+    if (!id || !orderItems || orderItems.length === 0) {
+      return res.status(400).json({ status: false, message: "id and order items required" });
     }
 
-    const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+    // Detect userId or guestId
+    let userId = mongoose.Types.ObjectId.isValid(id) ? id : null;
+    let guestId = !mongoose.Types.ObjectId.isValid(id) ? id : null;
 
+    // Fetch product details from DB
+    const populatedItems = await Promise.all(
+      orderItems.map(async (item) => {
+        const product = await Product.findById(item.productId).select("name images");
+
+        return {
+          ...item,
+          name: product?.name || "Product",
+          image: product?.images?.[0] || null,
+        };
+      })
+    );
+
+    const totalAmount = populatedItems.reduce(
+      (sum, item) => sum + item.price * item.qty,
+      0
+    );
+
+    // -------------------- 1️⃣ CASH ON DELIVERY --------------------
     if (paymentMethod === "COD") {
       const order = await Order.create({
         userId,
-        orderItems,
+        guestId,
+        orderItems: populatedItems,
         shippingAddress,
         paymentMethod: "COD",
         paymentStatus: "pending",
-        orderStatus: "processing",
+        orderStatus: "order placed",
         totalAmount,
       });
 
       return res.status(201).json({
         status: true,
-        message: "Order placed successfully (COD)",
+        type: "COD",
+        message: "Order placed successfully (Cash on Delivery)",
         data: order,
       });
     }
 
-    // Agar paymentMethod CARD hai → frontend PaymentIntent handle karega
+    // -------------------- 2️⃣ CARD (STRIPE CHECKOUT) --------------------
     if (paymentMethod === "CARD") {
       const order = await Order.create({
         userId,
-        orderItems,
+        guestId,
+        orderItems: populatedItems,
         shippingAddress,
         paymentMethod: "CARD",
         paymentStatus: "pending",
-        orderStatus: "processing",
+        orderStatus: "order placed",
         totalAmount,
       });
 
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: totalAmount * 100, // cents
-        currency: "usd",
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        mode: "payment",
+
+        success_url: `${process.env.CLIENT_URL}/payment-success?orderId=${order._id}`,
+        cancel_url: `${process.env.CLIENT_URL}/payment-failed?orderId=${order._id}`,
+
         metadata: { orderId: order._id.toString() },
+
+        line_items: populatedItems.map((item) => ({
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: item.name,
+              ...(item.image && {
+                images: [item.image],
+              }),
+            },
+            unit_amount: item.price * 100,
+          },
+          quantity: item.qty,
+        })),
       });
 
       return res.status(200).json({
         status: true,
-        message: "Stripe payment initiated",
-        clientSecret: paymentIntent.client_secret,
+        type: "CARD",
+        message: "Stripe checkout session created",
+        sessionUrl: session.url,
         orderId: order._id,
       });
     }
@@ -61,10 +105,14 @@ export const placeOrder = async (req, res) => {
     return res.status(400).json({ status: false, message: "Invalid payment method" });
 
   } catch (error) {
-    return res.status(500).json({ status: false, message: "Order failed", error: error.message });
+    console.error("PLACE ORDER ERROR:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Order failed",
+      error: error.message,
+    });
   }
 };
-
 // -------------------- CREATE PAYMENT INTENT (CARD) --------------------
 export const createPaymentIntent = async (req, res) => {
   try {
@@ -123,8 +171,6 @@ export const confirmPayment = async (req, res) => {
     res.status(500).json({ status: false, message: "Payment confirmation failed", error: error.message });
   }
 };
-
-
 
 
 export const getOrders = async (req, res) => {
@@ -203,13 +249,8 @@ export const adminUpdateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
 
-    const validStatus = [
-      "processing",
-      "on-the-way",
-      "shipped",
-      "delivered",
-      "cancelled"
-    ];
+    // 🔹 Allowed status sequence
+    const validStatus = ["order placed", "processing", "shipped", "delivered", "cancelled"];
 
     if (!validStatus.includes(status)) {
       return res.status(400).json({
@@ -219,7 +260,6 @@ export const adminUpdateOrderStatus = async (req, res) => {
     }
 
     const order = await Order.findById(req.params.id);
-
     if (!order) {
       return res.status(404).json({
         status: false,
@@ -271,6 +311,55 @@ export const adminUpdatePaymentStatus = async (req, res) => {
     res.status(500).json({
       status: false,
       message: "Error updating payment status",
+      error: error.message,
+    });
+  }
+};
+
+
+
+export const getOrderDetails = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    if (!orderId) {
+      return res.status(400).json({ status: false, message: "Order ID required" });
+    }
+
+    // Get order
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ status: false, message: "Order not found" });
+    }
+
+    // Fetch product details for each Order Item
+    const itemsWithProductDetails = await Promise.all(
+      order.orderItems.map(async (item) => {
+        const product = await Product.findById(item.productId).select("name images price");
+
+        return {
+          ...item.toObject(),
+          name: product?.name || "Product",
+          image: product?.images?.[0] || null,
+          originalPrice: product?.price || null,
+        };
+      })
+    );
+
+    return res.status(200).json({
+      status: true,
+      message: "Order details fetched",
+      data: {
+        ...order.toObject(),
+        orderItems: itemsWithProductDetails,
+      },
+    });
+
+  } catch (error) {
+    console.error("GET ORDER DETAIL ERROR:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Failed to fetch order details",
       error: error.message,
     });
   }

@@ -1,12 +1,17 @@
 import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema(
-  {
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
+  
+     {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: false,
+        },
+         guestId: {
+        type: String,
+        required: false,
+      },
 
     orderItems: [
       {
@@ -37,10 +42,10 @@ const orderSchema = new mongoose.Schema(
   default: "pending",
 },
 
-  orderStatus: {
+ orderStatus: {
   type: String,
-  enum: ["processing", "on-the-way", "shipped", "delivered", "cancelled"],
-  default: "processing",
+  enum: ["order placed", "processing", "shipped", "delivered", "cancelled"],
+  default: "order placed"
 },
 
     totalAmount: Number,

@@ -6,8 +6,8 @@ import jwt from "jsonwebtoken";
 // -------------------- REGISTER --------------------
 export const registerUser = async (req, res) => {
   try {
+    console.log('check==========',req)
     const { name, email, password, phone } = req.body;
-
     // Manual validation
     if (!name || !email || !password || !phone) {
       return res.status(400).json({
@@ -106,7 +106,7 @@ export const loginUser = async (req, res) => {
 
     // Create JWT token
     const token = jwt.sign(
-      { id: user._id },
+      { id: user._id,role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -119,6 +119,7 @@ export const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
+         role: user.role,  // <-- role in response
       },
       token,
     });
