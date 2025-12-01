@@ -330,3 +330,51 @@ export const adminUpdatePaymentStatus = async (req, res) => {
 
 
 
+export const getOrderDetails = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    if (!orderId) {
+      return res.status(400).json({ status: false, message: "Order ID required" });
+    }
+
+    // Get order
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ status: false, message: "Order not found" });
+    }
+
+    // Fetch product details for each Order Item
+    const itemsWithProductDetails = await Promise.all(
+      order.orderItems.map(async (item) => {
+        const product = await Product.findById(item.productId).select("name images price");
+
+        return {
+          ...item.toObject(),
+          name: product?.name || "Product",
+          image: product?.images?.[0] || null,
+          originalPrice: product?.price || null,
+        };
+      })
+    );
+
+    return res.status(200).json({
+      status: true,
+      message: "Order details fetched",
+      data: {
+        ...order.toObject(),
+        orderItems: itemsWithProductDetails,
+      },
+    });
+
+  } catch (error) {
+    console.error("GET ORDER DETAIL ERROR:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Failed to fetch order details",
+      error: error.message,
+    });
+  }
+};
+
+
