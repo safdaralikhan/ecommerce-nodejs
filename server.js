@@ -15,7 +15,6 @@ import stripeWebhookRoutes from "./routes/stripeWebhook.js";
 
 connectDB();
 const app = express();
-// / Enable JSON body parsing
 app.use(express.json()); // <--- Yeh zaroori hai
 app.use(express.urlencoded({ extended: true })); // optional, form data ke liye
 app.use(cors({
@@ -27,7 +26,7 @@ app.use(cors({
     ], 
   credentials: true,
 }));
-
+app.use(express.json());
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);

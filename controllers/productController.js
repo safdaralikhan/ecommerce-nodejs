@@ -55,15 +55,15 @@ export const createProduct = async (req, res) => {
   }
 };
 
+
 export const getProducts = async (req, res) => {
   try {
-    // Populate category ka name field
+    // Populate category ka name
     const products = await Product.find().populate("category", "name");
 
-    // Har product me sirf name show karna
     const updatedProducts = products.map(p => ({
       ...p._doc,
-      category: p.category.name, // ObjectId ko replace kar diya name se
+      category: p.category ? p.category.name : null, // <- null check
     }));
 
     res.status(200).json({
@@ -140,7 +140,6 @@ export const updateProduct = async (req, res) => {
     });
   }
 };
-
 // -------------------- DELETE PRODUCT --------------------
 export const deleteProduct = async (req, res) => {
   try {

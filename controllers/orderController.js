@@ -1,14 +1,18 @@
 import mongoose from "mongoose";
 import Order from "../models/Order.js";
-import Stripe from "stripe";
 import Product from "../models/Product.js";
+import Stripe from "stripe";
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY);
 
+// -------------------- PLACE ORDER (COD) --------------------
 
-  export const placeOrder = async (req, res) => {
+
+export const placeOrder = async (req, res) => {
   try {
     const { id, orderItems, shippingAddress, paymentMethod } = req.body;
+
     if (!id || !orderItems || orderItems.length === 0) {
       return res.status(400).json({ status: false, message: "id and order items required" });
     }
@@ -73,7 +77,7 @@ console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY);
         payment_method_types: ["card"],
         mode: "payment",
 
-        success_url: `${process.env.CLIENT_URL}/payment-success?orderId=${order._id}`,
+         success_url: `${process.env.CLIENT_URL}/payment-success?orderId=${order._id}`,
         cancel_url: `${process.env.CLIENT_URL}/payment-failed?orderId=${order._id}`,
 
         metadata: { orderId: order._id.toString() },
@@ -250,7 +254,7 @@ export const adminUpdateOrderStatus = async (req, res) => {
     const { status } = req.body;
 
     // 🔹 Allowed status sequence
-    const validStatus = ["order placed", "processing", "shipped", "delivered", "cancelled"];
+    const validStatus = ["order placed", "processing", "ship", "delivered", "cancelled"];
 
     if (!validStatus.includes(status)) {
       return res.status(400).json({
@@ -364,6 +368,5 @@ export const getOrderDetails = async (req, res) => {
     });
   }
 };
-
 
 

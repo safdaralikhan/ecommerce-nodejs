@@ -14,5 +14,4 @@ router.put("/:id",protect, updateCategory);  // Admin
 router.delete("/:id",protect, deleteCategory); // Admin
 router.get("/by-category/:categoryId", getProductsByCategory);
 
-
 export default router;

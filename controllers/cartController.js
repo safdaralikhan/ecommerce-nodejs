@@ -1,7 +1,6 @@
 import Cart from "../models/Cart.js";
 import mongoose from "mongoose";
 
-// -------------------- ADD TO CART --------------------
 export const addToCart = async (req, res) => {
   try {
     const { userId, guestId, productId, qty } = req.body;
@@ -79,7 +78,7 @@ export const addToCart = async (req, res) => {
 };
 
 
-// -------------------- GET CART (user OR guest) --------------------
+
 export const getCart = async (req, res) => {
   try {
     const { id } = req.params;
@@ -125,7 +124,6 @@ export const getCart = async (req, res) => {
     });
   }
 };
-
 
 
 
