@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
+import User from "../models/User.js";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -374,6 +375,65 @@ export const getOrderDetails = async (req, res) => {
       message: "Failed to fetch order details",
       error: error.message,
     });
+  }
+};
+
+
+
+// -------------------- 1️⃣ Get user profile --------------------
+export const getUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    if (!user) {
+      return res.status(404).json({ status: false, message: "User not found" });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "User profile fetched",
+      data: user,
+    });
+  } catch (error) {
+    console.error("GET PROFILE ERROR:", error);
+    res.status(500).json({ status: false, message: "Server error", error: error.message });
+  }
+};
+
+// -------------------- 2️⃣ Get user orders (delivered) --------------------
+export const getUserDeliveredOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ 
+      userId: req.user._id, 
+      orderStatus: "delivered" 
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      status: true,
+      message: "Delivered orders fetched",
+      data: orders,
+    });
+  } catch (error) {
+    console.error("GET DELIVERED ORDERS ERROR:", error);
+    res.status(500).json({ status: false, message: "Server error", error: error.message });
+  }
+};
+
+// -------------------- 3️⃣ Get user orders (not delivered) --------------------
+export const getUserPendingOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ 
+      userId: req.user._id, 
+      orderStatus: { $ne: "delivered" } 
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      status: true,
+      message: "Pending orders fetched",
+      data: orders,
+    });
+  } catch (error) {
+    console.error("GET PENDING ORDERS ERROR:", error);
+    res.status(500).json({ status: false, message: "Server error", error: error.message });
   }
 };
 
