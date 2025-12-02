@@ -291,7 +291,7 @@ export const adminUpdateOrderStatus = async (req, res) => {
 
 export const adminUpdatePaymentStatus = async (req, res) => {
   try {
-     console.log('req=====',req)
+     console.log('req=====',req.body)
     if (!req.body || !req.body.status) {
       return res.status(400).json({ 
         status: false,
