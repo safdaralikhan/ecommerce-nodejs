@@ -291,6 +291,13 @@ export const adminUpdateOrderStatus = async (req, res) => {
 
 export const adminUpdatePaymentStatus = async (req, res) => {
   try {
+    if (!req.body || !req.body.status) {
+      return res.status(400).json({ 
+        status: false,
+        message: "Payment status is required" 
+      });
+    }
+
     const { status } = req.body;
 
     const valid = ["pending", "paid", "failed", "refunded"];
