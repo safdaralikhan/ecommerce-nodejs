@@ -6,12 +6,12 @@ import {
   deleteCategory,
   getProductsByCategory
 } from "../controllers/categoryController.js";
-import { protect } from "../middleware/authMiddleware.js";
+import { protect ,authorizeRoles} from "../middleware/authMiddleware.js";
 const router = express.Router();
-router.post("/",protect, createCategory);   // Admin only
+router.post("/",protect, authorizeRoles("admin"), createCategory);   // Admin only
 router.get("/", getCategories);
-router.put("/:id",protect, updateCategory);  // Admin
-router.delete("/:id",protect, deleteCategory); // Admin
+router.put("/:id",protect, authorizeRoles("admin"), updateCategory);  // Admin
+router.delete("/:id",protect, authorizeRoles("admin"), deleteCategory); // Admin
 router.get("/by-category/:categoryId", getProductsByCategory);
 
 export default router;
