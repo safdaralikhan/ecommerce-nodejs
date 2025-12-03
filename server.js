@@ -25,9 +25,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // =================== CORS ===================
 const allowedOrigins = [
+  
   "https://ecommerce-frontend-pied-two.vercel.app",
   "http://localhost:3000",
-  "https://ecommerce-nodejs-production-4abd.up.railway.app"
+  "https://ecommerce-nodejs-production-4abd.up.railway.app",
+  "https://oblivious-zella-hyperidealistically.ngrok-free.dev"
 ];
 
 app.use(cors({
