@@ -55,7 +55,7 @@ export const placeOrder = async (req, res) => {
       console.log("🟢 COD ORDER CREATED:", order._id);
 
       // 🔥 SOCKET: NOTIFY ADMIN
-     io.to("adminRoom").emit("new_order", {
+      io.to("adminRoom").emit("new_order", {
     message: "New Order Created",
     orderId: order._id,
     customerName: shippingAddress.fullName,
@@ -88,6 +88,7 @@ export const placeOrder = async (req, res) => {
 
       console.log("🟢 STRIPE ORDER CREATED:", order._id);
 
+      // 🔥 SOCKET: NOTIFY ADMIN
      io.to("adminRoom").emit("new_order", {
     message: "New Order Created",
     orderId: order._id,
