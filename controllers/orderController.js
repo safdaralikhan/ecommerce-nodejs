@@ -452,10 +452,10 @@ export const getUserPendingOrders = async (req, res) => {
 
     console.log("👉 USER ID:", req.user._id);
 
-    const orders = await Order.find({
+       const orders = await Order.find({
       userId: req.user._id,
       orderStatus: { $ne: "delivered" }
-    }).sort({ createdAt: -1 });
+    }).populate("orderItems.productId", "name images").sort({ createdAt: -1 });
 
     console.log("📦 Pending Orders Found:", orders.length);
     console.log("📦 Orders:", orders);
