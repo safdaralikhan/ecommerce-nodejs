@@ -55,11 +55,15 @@ export const placeOrder = async (req, res) => {
       console.log("🟢 COD ORDER CREATED:", order._id);
 
       // 🔥 SOCKET: NOTIFY ADMIN
-      io.emit("admin_new_order", {
-        message: "New COD Order Placed",
-        orderId: order._id,
-      });
-      console.log("📢 Sent event: admin_new_order");
+      io.to("adminRoom").emit("new_order", {
+    message: "New Order Created",
+    orderId: order._id,
+    customerName: shippingAddress.fullName,
+    totalAmount: order.totalAmount,
+    timestamp: new Date(),
+    orderStatus: order.orderStatus
+  });
+  console.log(":loudspeaker: Sent new_order notification to adminRoom");
 
       return res.status(201).json({
         status: true,
@@ -85,11 +89,15 @@ export const placeOrder = async (req, res) => {
       console.log("🟢 STRIPE ORDER CREATED:", order._id);
 
       // 🔥 SOCKET: NOTIFY ADMIN
-      io.emit("admin_new_order", {
-        message: "New Card Payment Order Placed",
-        orderId: order._id,
-      });
-      console.log("📢 Sent event: admin_new_order");
+     io.to("adminRoom").emit("new_order", {
+    message: "New Order Created",
+    orderId: order._id,
+    customerName: shippingAddress.fullName,
+    totalAmount: order.totalAmount,
+    timestamp: new Date(),
+    orderStatus: order.orderStatus
+  });
+  console.log(":loudspeaker: Sent new_order notification to adminRoom");
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
