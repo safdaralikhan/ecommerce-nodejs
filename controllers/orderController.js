@@ -419,7 +419,7 @@ export const getUserDeliveredOrders = async (req, res) => {
     const orders = await Order.find({
       userId: req.user._id,
       orderStatus: "delivered",
-    }).sort({ createdAt: -1 });
+    }).populate("orderItems.productId", "name images").sort({ createdAt: -1 });
 
     console.log("📦 Delivered Orders Found:", orders.length);
     console.log("📦 Orders:", orders);
