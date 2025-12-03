@@ -401,12 +401,28 @@ export const getUserProfile = async (req, res) => {
 };
 
 // -------------------- 2️⃣ Get user orders (delivered) --------------------
+// -------------------- 2️⃣ Get user orders (delivered) --------------------
 export const getUserDeliveredOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ 
-      userId: req.user._id, 
-      orderStatus: "delivered" 
+    console.log("🔍 Checking delivered orders for user:", req.user);
+
+    if (!req.user || !req.user._id) {
+      console.log("❌ req.user missing!");
+      return res.status(400).json({
+        status: false,
+        message: "User not authenticated",
+      });
+    }
+
+    console.log("👉 USER ID:", req.user._id);
+
+    const orders = await Order.find({
+      userId: req.user._id,
+      orderStatus: "delivered",
     }).sort({ createdAt: -1 });
+
+    console.log("📦 Delivered Orders Found:", orders.length);
+    console.log("📦 Orders:", orders);
 
     res.status(200).json({
       status: true,
@@ -414,18 +430,35 @@ export const getUserDeliveredOrders = async (req, res) => {
       data: orders,
     });
   } catch (error) {
-    console.error("GET DELIVERED ORDERS ERROR:", error);
+    console.error("❌ GET DELIVERED ORDERS ERROR:", error);
     res.status(500).json({ status: false, message: "Server error", error: error.message });
   }
 };
 
+
+// -------------------- 3️⃣ Get user orders (not delivered) --------------------
 // -------------------- 3️⃣ Get user orders (not delivered) --------------------
 export const getUserPendingOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ 
-      userId: req.user._id, 
-      orderStatus: { $ne: "delivered" } 
+    console.log("🔍 Checking pending orders for user:", req.user);
+
+    if (!req.user || !req.user._id) {
+      console.log("❌ req.user missing!");
+      return res.status(400).json({
+        status: false,
+        message: "User not authenticated",
+      });
+    }
+
+    console.log("👉 USER ID:", req.user._id);
+
+    const orders = await Order.find({
+      userId: req.user._id,
+      orderStatus: { $ne: "delivered" }
     }).sort({ createdAt: -1 });
+
+    console.log("📦 Pending Orders Found:", orders.length);
+    console.log("📦 Orders:", orders);
 
     res.status(200).json({
       status: true,
@@ -433,7 +466,7 @@ export const getUserPendingOrders = async (req, res) => {
       data: orders,
     });
   } catch (error) {
-    console.error("GET PENDING ORDERS ERROR:", error);
+    console.error("❌ GET PENDING ORDERS ERROR:", error);
     res.status(500).json({ status: false, message: "Server error", error: error.message });
   }
 };
