@@ -22,3 +22,22 @@ export const protect = async (req, res, next) => {
     res.status(401).json({ message: "No token, authorization denied" });
   }
 };
+
+
+
+
+
+// Role-based access
+export const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ status: false, message: "Not authorized" });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ status: false, message: "Access forbidden: Insufficient permissions" });
+    }
+
+    next();
+  };
+};

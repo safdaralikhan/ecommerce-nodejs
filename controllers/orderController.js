@@ -1,31 +1,31 @@
 import mongoose from "mongoose";
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
+import User from "../models/User.js";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY);
 
-// -------------------- PLACE ORDER (COD) --------------------
-
-
+// 1️⃣ PLACE ORDER (COD + STRIPE)
+// -----------------------------------------------------------
 export const placeOrder = async (req, res) => {
   try {
+    console.log("📦 PLACE ORDER API HIT");
     const { id, orderItems, shippingAddress, paymentMethod } = req.body;
+    console.log("REQ BODY:", req.body);
 
     if (!id || !orderItems || orderItems.length === 0) {
+      console.log("❌ Missing id or order items");
       return res.status(400).json({ status: false, message: "id and order items required" });
     }
 
-    // Detect userId or guestId
     let userId = mongoose.Types.ObjectId.isValid(id) ? id : null;
     let guestId = !mongoose.Types.ObjectId.isValid(id) ? id : null;
 
-    // Fetch product details from DB
     const populatedItems = await Promise.all(
       orderItems.map(async (item) => {
         const product = await Product.findById(item.productId).select("name images");
-
         return {
           ...item,
           name: product?.name || "Product",
@@ -35,11 +35,11 @@ export const placeOrder = async (req, res) => {
     );
 
     const totalAmount = populatedItems.reduce(
-      (sum, item) => sum + item.price * item.qty,
+      (sum, i) => sum + i.price * i.qty,
       0
     );
 
-    // -------------------- 1️⃣ CASH ON DELIVERY --------------------
+    // 1️⃣ CASH ON DELIVERY
     if (paymentMethod === "COD") {
       const order = await Order.create({
         userId,
@@ -52,15 +52,24 @@ export const placeOrder = async (req, res) => {
         totalAmount,
       });
 
+      console.log("🟢 COD ORDER CREATED:", order._id);
+
+      // 🔥 SOCKET: NOTIFY ADMIN
+      io.emit("admin_new_order", {
+        message: "New COD Order Placed",
+        orderId: order._id,
+      });
+      console.log("📢 Sent event: admin_new_order");
+
       return res.status(201).json({
         status: true,
         type: "COD",
-        message: "Order placed successfully (Cash on Delivery)",
+        message: "Order placed successfully",
         data: order,
       });
     }
 
-    // -------------------- 2️⃣ CARD (STRIPE CHECKOUT) --------------------
+    // 2️⃣ STRIPE PAYMENT
     if (paymentMethod === "CARD") {
       const order = await Order.create({
         userId,
@@ -73,24 +82,25 @@ export const placeOrder = async (req, res) => {
         totalAmount,
       });
 
+      console.log("🟢 STRIPE ORDER CREATED:", order._id);
+
+      // 🔥 SOCKET: NOTIFY ADMIN
+      io.emit("admin_new_order", {
+        message: "New Card Payment Order Placed",
+        orderId: order._id,
+      });
+      console.log("📢 Sent event: admin_new_order");
+
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
         mode: "payment",
-
-         success_url: `${process.env.CLIENT_URL}/payment-success?orderId=${order._id}`,
+        success_url: `${process.env.CLIENT_URL}/payment-success?orderId=${order._id}`,
         cancel_url: `${process.env.CLIENT_URL}/payment-failed?orderId=${order._id}`,
-
         metadata: { orderId: order._id.toString() },
-
         line_items: populatedItems.map((item) => ({
           price_data: {
             currency: "usd",
-            product_data: {
-              name: item.name,
-              ...(item.image && {
-                images: [item.image],
-              }),
-            },
+            product_data: { name: item.name, ...(item.image && { images: [item.image] }) },
             unit_amount: item.price * 100,
           },
           quantity: item.qty,
@@ -100,7 +110,7 @@ export const placeOrder = async (req, res) => {
       return res.status(200).json({
         status: true,
         type: "CARD",
-        message: "Stripe checkout session created",
+        message: "Stripe session created",
         sessionUrl: session.url,
         orderId: order._id,
       });
@@ -109,7 +119,7 @@ export const placeOrder = async (req, res) => {
     return res.status(400).json({ status: false, message: "Invalid payment method" });
 
   } catch (error) {
-    console.error("PLACE ORDER ERROR:", error);
+    console.error("❌ PLACE ORDER ERROR:", error);
     return res.status(500).json({
       status: false,
       message: "Order failed",
@@ -117,6 +127,7 @@ export const placeOrder = async (req, res) => {
     });
   }
 };
+
 // -------------------- CREATE PAYMENT INTENT (CARD) --------------------
 export const createPaymentIntent = async (req, res) => {
   try {
@@ -249,30 +260,40 @@ export const adminGetOrder = async (req, res) => {
   }
 };
 
+// -----------------------------------------------------------
+// 2️⃣ ADMIN UPDATE ORDER STATUS
+// -----------------------------------------------------------
 export const adminUpdateOrderStatus = async (req, res) => {
   try {
+    console.log("📦 ADMIN UPDATE ORDER STATUS API HIT");
     const { status } = req.body;
 
-    // 🔹 Allowed status sequence
-    const validStatus = ["order placed", "processing", "ship", "delivered", "cancelled"];
-
+    const validStatus = ["order placed", "processing", "shipped", "delivered", "cancelled"];
     if (!validStatus.includes(status)) {
-      return res.status(400).json({
-        status: false,
-        message: "Invalid order status",
-      });
+      return res.status(400).json({ status: false, message: "Invalid status" });
     }
 
     const order = await Order.findById(req.params.id);
     if (!order) {
-      return res.status(404).json({
-        status: false,
-        message: "Order not found",
-      });
+      console.log("❌ ORDER NOT FOUND");
+      return res.status(404).json({ status: false, message: "Order not found" });
     }
 
     order.orderStatus = status;
     await order.save();
+
+    console.log(`🟢 ORDER STATUS UPDATED: ${order._id} → ${status}`);
+
+    // 🔥 SOCKET: NOTIFY USER
+    if (order.userId) {
+      io.to(order.userId.toString()).emit("order_status_update", {
+        message: "Order Status Updated",
+        orderId: order._id,
+        newStatus: status
+      });
+
+      console.log("📢 Sent event: order_status_update to:", order.userId);
+    }
 
     res.json({
       status: true,
@@ -281,6 +302,7 @@ export const adminUpdateOrderStatus = async (req, res) => {
     });
 
   } catch (error) {
+    console.error("❌ ADMIN UPDATE STATUS ERROR:", error);
     res.status(500).json({
       status: false,
       message: "Error updating order status",
@@ -289,21 +311,40 @@ export const adminUpdateOrderStatus = async (req, res) => {
   }
 };
 
+
+
+
+// 3️⃣ ADMIN UPDATE PAYMENT STATUS
+// -----------------------------------------------------------
 export const adminUpdatePaymentStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    console.log("💳 ADMIN UPDATE PAYMENT STATUS API HIT");
 
+    const { status } = req.body;
     const valid = ["pending", "paid", "failed", "refunded"];
+
     if (!valid.includes(status)) {
       return res.status(400).json({ message: "Invalid payment status" });
     }
 
     const order = await Order.findById(req.params.id);
-    if (!order)
-      return res.status(404).json({ message: "Order not found" });
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
     order.paymentStatus = status;
     await order.save();
+
+    console.log(`🟢 PAYMENT STATUS UPDATED: ${order._id} → ${status}`);
+
+    // 🔥 SOCKET: NOTIFY USER
+    if (order.userId) {
+      io.to(order.userId.toString()).emit("payment_status_update", {
+        message: "Payment Status Updated",
+        orderId: order._id,
+        newStatus: status
+      });
+
+      console.log("📢 Sent event: payment_status_update to:", order.userId);
+    }
 
     res.json({
       status: true,
@@ -312,6 +353,7 @@ export const adminUpdatePaymentStatus = async (req, res) => {
     });
 
   } catch (error) {
+    console.error("❌ PAYMENT UPDATE ERROR:", error);
     res.status(500).json({
       status: false,
       message: "Error updating payment status",
@@ -319,7 +361,6 @@ export const adminUpdatePaymentStatus = async (req, res) => {
     });
   }
 };
-
 
 
 export const getOrderDetails = async (req, res) => {
@@ -370,3 +411,90 @@ export const getOrderDetails = async (req, res) => {
 };
 
 
+// -------------------- 1️⃣ Get user profile --------------------
+export const getUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    if (!user) {
+      return res.status(404).json({ status: false, message: "User not found" });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "User profile fetched",
+      data: user,
+    });
+  } catch (error) {
+    console.error("GET PROFILE ERROR:", error);
+    res.status(500).json({ status: false, message: "Server error", error: error.message });
+  }
+};
+
+export const getUserDeliveredOrders = async (req, res) => {
+  try {
+    console.log("🔍 Checking delivered orders for user:", req.user);
+
+    if (!req.user || !req.user._id) {
+      console.log("❌ req.user missing!");
+      return res.status(400).json({
+        status: false,
+        message: "User not authenticated",
+      });
+    }
+
+    console.log("👉 USER ID:", req.user._id);
+
+    const orders = await Order.find({
+      userId: req.user._id,
+      orderStatus: "delivered",
+    }).populate("orderItems.productId", "name images").sort({ createdAt: -1 });
+
+    console.log("📦 Delivered Orders Found:", orders.length);
+    console.log("📦 Orders:", orders);
+
+    res.status(200).json({
+      status: true,
+      message: "Delivered orders fetched",
+      data: orders,
+    });
+  } catch (error) {
+    console.error("❌ GET DELIVERED ORDERS ERROR:", error);
+    res.status(500).json({ status: false, message: "Server error", error: error.message });
+  }
+};
+
+
+// -------------------- 3️⃣ Get user orders (not delivered) --------------------
+// -------------------- 3️⃣ Get user orders (not delivered) --------------------
+export const getUserPendingOrders = async (req, res) => {
+  try {
+    console.log("🔍 Checking pending orders for user:", req.user);
+
+    if (!req.user || !req.user._id) {
+      console.log("❌ req.user missing!");
+      return res.status(400).json({
+        status: false,
+        message: "User not authenticated",
+      });
+    }
+
+    console.log("👉 USER ID:", req.user._id);
+
+    const orders = await Order.find({
+      userId: req.user._id,
+      orderStatus: { $ne: "delivered" }
+    }).populate("orderItems.productId", "name images").sort({ createdAt: -1 });
+
+    console.log("📦 Pending Orders Found:", orders.length);
+    console.log("📦 Orders:", orders);
+
+    res.status(200).json({
+      status: true,
+      message: "Pending orders fetched",
+      data: orders,
+    });
+  } catch (error) {
+    console.error("❌ GET PENDING ORDERS ERROR:", error);
+    res.status(500).json({ status: false, message: "Server error", error: error.message });
+  }
+};
