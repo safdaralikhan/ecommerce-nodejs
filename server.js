@@ -14,6 +14,7 @@ import categoryRoutes from "./routes/categoryRoutes.js";
 import homeRoutes from "./routes/homeRoutes.js";
 import SearchRoutes from "./routes/SearchRoutes.js";
 import stripeWebhookRoutes from "./routes/stripeWebhook.js";
+import authRoutes from "./routes/authRoutes.js";
 
 // =================== DATABASE CONNECT ===================
 connectDB();
@@ -82,6 +83,7 @@ app.use("/api/category", categoryRoutes);
 app.use("/api/home", homeRoutes);
 app.use("/api/search", SearchRoutes);
 app.use("/api/webhook", stripeWebhookRoutes);
+app.use("/api/auth", authRoutes);
 
 app.get("/", (req, res) => {
   res.send("Backend is running with Socket.io...");

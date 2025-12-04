@@ -39,8 +39,12 @@ const userSchema = new mongoose.Schema(
         postalCode: String,
         addressLine: String,
       }
-    ]
+    ],
+      // 🔹 OTP & Expiry for Forget Password
+    resetPasswordOTP: String,
+    resetPasswordExpires: Date,
   },
+  
   { timestamps: true }
 );
 
