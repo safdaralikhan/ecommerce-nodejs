@@ -5,7 +5,6 @@ import User from "../models/User.js";
 import Stripe from "stripe";
 import { io } from "../server.js";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY);
 
 // 1️⃣ PLACE ORDER (COD + STRIPE)
 // -----------------------------------------------------------
@@ -320,8 +319,6 @@ export const adminUpdateOrderStatus = async (req, res) => {
 };
 
 
-
-
 // 3️⃣ ADMIN UPDATE PAYMENT STATUS
 // -----------------------------------------------------------
 export const adminUpdatePaymentStatus = async (req, res) => {
@@ -470,8 +467,6 @@ export const getUserDeliveredOrders = async (req, res) => {
     res.status(500).json({ status: false, message: "Server error", error: error.message });
   }
 };
-
-
 
 // -------------------- 3️⃣ Get user orders (not delivered) --------------------
 export const getUserPendingOrders = async (req, res) => {
