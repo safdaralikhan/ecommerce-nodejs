@@ -13,8 +13,8 @@ export const forgotPassword = async (req, res) => {
 
         const otp = Math.floor(100000 + Math.random() * 900000); // 6-digit OTP
 
-        user.resetOtp = otp;
-        user.resetOtpExpiry = Date.now() + 10 * 60 * 1000; // 10 mins
+        user.resetPasswordOTP = otp;
+        user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 mins
         await user.save();
 
         await sendEmail(email, "Password Reset OTP", `Your OTP is: ${otp}`);
@@ -63,8 +63,8 @@ export const resetPassword = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(newPassword, salt);
 
+        user.resetPasswordOTP = null;
         user.resetPasswordExpires = null;
-        user.resetOtpExpiry = null;
 
         await user.save();
 
